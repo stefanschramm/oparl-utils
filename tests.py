@@ -23,14 +23,20 @@ import re
 def main():
 	testcases = [
 		['examples/body_ex1.json', test_body],
+		['examples/committee_ex1.json', test_committee],
 		['examples/person_ex1.json', test_person],
 		['examples/meeting_ex1.json', test_meeting],
-		['examples/paper_ex1.json', test_paper]
-		# TODO: committee, organisation, agendaitem, vote, document, location
+		['examples/paper_ex1.json', test_paper],
+		['examples/organisation_ex1.json', test_organisation],
+		['examples/vote_ex1.json', test_vote],
+		['examples/vote_ex2.json', test_vote]
+		# TODO: agendaitem, document, location
 	]
 
 	for example_file, test_function in testcases:
 		test_function(load_example(example_file))
+
+	# TODO: implement test of referential integrity across all example objects (e.g. if a meeting references a person-id, check if there is a person with this id)
 
 def load_example(filename):
 	return json.load(codecs.open(filename, 'r', 'utf-8-sig'))
@@ -38,14 +44,22 @@ def load_example(filename):
 def is_text(s):
 	return isinstance(s, unicode)
 
-def is_list(l):
-	return isinstance(l, list)
-
 def is_integer(i):
 	return isinstance(i, int)
 
 def is_float(f):
 	return isinstance(f, float)
+
+def is_list(l):
+	return isinstance(l, list)
+
+def is_list_of_texts(l):
+	if not is_list(l):
+		return False
+	for entry in l:
+		if not is_text(entry):
+			return False
+	return True
 
 def is_regionalschluessel(s):
 	return is_text(s) and re.match("^[0-9]{12}$", s)
@@ -58,15 +72,17 @@ def is_email(e):
 	return is_text(e) and re.match('^.*@.*$', e)
 
 def is_datetime(d):
-	# TODO: check for ISO 8601 / RFC 3339?
-	return is_text(d) and re.match('^[0-9]{4}-[0-9]{2}-[0-9]{2}.*', d)
+	# http://www.w3.org/TR/NOTE-datetime (Complete date plus hours, minutes and seconds) - subset of ISO 8601
+	# TODO: plausability check?
+	return is_text(d) and re.match('^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\+[0-9]{2}:[0-9]{2}$', d)
 
 def is_date(d):
-	# TODO: check for ISO 8601 / RFC 3339?
+	# http://www.w3.org/TR/NOTE-datetime (Complete date) - subset of ISO 8601
+	# TODO: plausability check?
 	return is_text(d) and re.match('^[0-9]{4}-[0-9]{2}-[0-9]{2}$', d)
 
 def is_phonenumber(p):
-	# TODO: check for ITU E.123 or DIN 5008?
+	# TODO: check for ITU E.123 / DIN 5008 / http://www.ietf.org/rfc/rfc3966.txt ?
 	return is_text(p)
 
 def is_relation_with_optional_dates(r):
@@ -137,12 +153,10 @@ def test_meeting(data):
 	assert "last_modified" in data and is_datetime(data["last_modified"])
 	assert "committees" in data and is_list(data["committees"])
 	assert len(data["committees"]) >= 1
-	for c in data["committees"]:
-		assert is_text(c)
-	# NOTE: Meiner Auffassung nach sollte das People-Feld optional sein. Außerdem macht es für zukünftige Sitzungen nicht unbedingt Sinn bzw. ist dann zumindest leer.
+	assert is_list_of_texts(data["committees"])
+	# NOTE: Meiner Auffassung nach sollte das people-Feld optional sein. Außerdem macht es für in der Zukunft liegende Sitzungen keinen Sinn bzw. ist dann zumindest leer.
 	assert "people" in data and is_list(data["people"])
-	for p in data["people"]:
-		assert is_text(p)
+	assert is_list_of_texts(data["people"])
 	# optional fields:
 	if "sequence_number" in data:
 		assert is_integer(data["sequence_number"])
@@ -166,15 +180,12 @@ def test_paper(data):
 	assert "type" in data and is_text(data["type"])
 	assert "last_modified" in data and is_datetime(data["last_modified"])
 	assert "main_document" in data and is_text(data["main_document"])
+	# NOTE: In der Spezifikation enthält main_document und attachments scheinbar Dateinamen (3002.pdf) - das sollten wohl eigentlich eher die id sein.
 	# optional fields:
 	if "attachments" in data:
-		assert is_list(data["attachments"])
-		for a in data["attachments"]:
-			assert is_text(a)
+		assert is_list(data["attachments"]) and is_list_of_texts(data["attachments"])
 	if "committees" in data:
-		assert is_list(data["committees"])
-		for c in data["committees"]:
-			assert is_text(c)
+		assert is_list(data["committees"]) and is_list_of_texts(data["committees"])
 	if "creators" in data:
 		assert is_list(data["creators"])
 		for c in data["creators"]:
@@ -190,10 +201,8 @@ def test_paper(data):
 			assert "lat" in l and is_float(l["lat"])
 			assert "lon" in l and is_float(l["lon"])
 	if "related_papers" in data:
-		assert is_list(data["related_papers"])
-		for rp in data["related_papers"]:
-			# NOTE: An dieser Stelle ist noch nicht möglich festzulegen, welche Beziehung die referenzierte Drucksache zur aktuellen hat.
-			assert is_text(rp)
+		assert is_list(data["related_papers"]) and is_list_of_texts(data["related_papers"])
+		# NOTE: An dieser Stelle ist es noch nicht möglich festzulegen, welche Beziehung die referenzierte Drucksache zur aktuellen hat.
 	if "consultations" in data:
 		assert is_list(data["consultations"])
 		for c in data["consultations"]:
@@ -201,6 +210,38 @@ def test_paper(data):
 			assert "agendaitem" in c and is_text(c["agendaitem"])
 			if "role" in c:
 				assert is_text(c["role"])
+
+def test_committee(data):
+	# required fields:
+	assert "id" in data and is_text(data["id"])
+	assert "body" in data and is_text(data["body"])
+	assert "name" in data and is_text(data["name"])
+	assert "last_modified" in data and is_datetime(data["last_modified"])
+	# optional fields:
+	if "short_name" in data:
+		assert is_text(data["short_name"])
+
+def test_organisation(data):
+	# required fields:
+	assert "id" in data and is_text(data["id"])
+	assert "body" in data and is_text(data["body"])
+	assert "name" in data and is_text(data["name"])
+	assert "last_modified" in data and is_datetime(data["last_modified"])
+
+def test_vote(data):
+	# required fields:
+	assert "sum" in data and is_integer(data["sum"])
+	assert "vote" in data and data["vote"] in ["DAFUER", "DAGEGEN", "ENTHALTUNG"]
+	assert "people" in data or "organisations" in data
+	if "people" in data:
+		assert is_list(data["people"]) and is_list_of_texts(data["people"])
+		# TODO:
+		# Spezifikationsbeschreibung für diesen Fall ist irritierend bzw. bzgl. des Beispiels widersprüchlich:
+		# "Es wird entweder genau eine Person [...] referenziert"
+		# "Gehört die Stimmabgabe zu einer Person, ist der Wert immer 1"
+		assert data["sum"] == len(data["people"])
+	if "organisations" in data:
+		assert is_list(data["organisations"]) and is_list_of_texts(data["organisations"])
 
 if __name__ == "__main__":
 	main()
