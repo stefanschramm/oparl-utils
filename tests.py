@@ -24,8 +24,9 @@ def main():
 	testcases = [
 		['examples/body_ex1.json', test_body],
 		['examples/person_ex1.json', test_person],
-		['examples/meeting_ex1.json', test_meeting]
-		# TODO: committee, organisation, agendaitem, vote, paper, document, location
+		['examples/meeting_ex1.json', test_meeting],
+		['examples/paper_ex1.json', test_paper]
+		# TODO: committee, organisation, agendaitem, vote, document, location
 	]
 
 	for example_file, test_function in testcases:
@@ -42,6 +43,9 @@ def is_list(l):
 
 def is_integer(i):
 	return isinstance(i, int)
+
+def is_float(f):
+	return isinstance(f, float)
 
 def is_regionalschluessel(s):
 	return is_text(s) and re.match("^[0-9]{12}$", s)
@@ -66,7 +70,7 @@ def is_phonenumber(p):
 	return is_text(p)
 
 def is_relation_with_optional_dates(r):
-	assert "id" in r
+	assert "id" in r and is_text(r["id"])
 	if "start" in r:
 		assert is_date(r["start"])
 	if "end" in r:
@@ -81,9 +85,8 @@ def is_committee_relation(c):
 
 def test_body(data):
 	# required fields:
-	assert "id" in data
-	assert "name" in data
-	assert is_text(data["name"])
+	assert "id" in data and is_text(data["id"])
+	assert "name" in data and is_text(data["name"])
 	# optional fields:
 	if "regionalschluessel" in data:
 		assert is_regionalschluessel(data["regionalschluessel"])
@@ -98,12 +101,10 @@ def test_body(data):
 
 def test_person(data):
 	# required fields:
-	assert "id" in data
-	assert is_text(data["id"])
-	assert "first_name" in data
-	assert is_text(data["first_name"])
-	assert "last_name" in data
-	assert is_text(data["last_name"])
+	assert "id" in data and is_text(data["id"])
+	assert "first_name" in data and is_text(data["first_name"])
+	assert "last_name" in data and is_text(data["last_name"])
+	# optional fields:
 	if "academic_title" in data:
 		assert is_text(data["academic_title"])
 	if "sex" in data:
@@ -130,23 +131,25 @@ def test_person(data):
 			assert is_committee_relation(c)
 
 def test_meeting(data):
-	assert "id" in data
+	# required fields:
+	assert "id" in data and is_text(data["id"])
+	assert "start" in data and (is_date(data["start"]) or is_datetime(data["start"]))
+	assert "last_modified" in data and is_datetime(data["last_modified"])
+	assert "committees" in data and is_list(data["committees"])
+	assert len(data["committees"]) >= 1
+	for c in data["committees"]:
+		assert is_text(c)
+	# NOTE: Meiner Auffassung nach sollte das People-Feld optional sein. Außerdem macht es für zukünftige Sitzungen nicht unbedingt Sinn bzw. ist dann zumindest leer.
+	assert "people" in data and is_list(data["people"])
+	for p in data["people"]:
+		assert is_text(p)
+	# optional fields:
 	if "sequence_number" in data:
 		assert is_integer(data["sequence_number"])
-	assert "start" in data
-	assert is_date(data["start"]) or is_datetime(data["start"])
 	if "end" in data:
 		assert is_date(data["end"]) or is_datetime(data["end"])
 	if "address" in data:
 		assert is_text(data["address"])
-	assert "last_modified" in data
-	assert is_datetime(data["last_modified"])
-	assert "committees" in data
-	assert is_list(data["committees"])
-	assert len(data["committees"]) >= 1
-	for c in data["committees"]:
-		assert is_text(c)
-	#assert "people" in data # TODO: Für in der Zukunft liegenden Sitzungen macht diese Angabe keinen Sinn bzw. muss leer bleiben. - eigentlich optional?
 	if "invitation" in data:
 		assert is_text(data["invitation"])
 	if "result_minutes" in data:
@@ -155,6 +158,49 @@ def test_meeting(data):
 		assert is_text(data["verbatim_minutes"])
 	if "attachments" in data:
 		assert is_list(data["attachments"])
+
+def test_paper(data):
+	# required fields:
+	assert "id" in data and is_text(data["id"])
+	assert "date" in data and is_date(data["date"])
+	assert "type" in data and is_text(data["type"])
+	assert "last_modified" in data and is_datetime(data["last_modified"])
+	assert "main_document" in data and is_text(data["main_document"])
+	# optional fields:
+	if "attachments" in data:
+		assert is_list(data["attachments"])
+		for a in data["attachments"]:
+			assert is_text(a)
+	if "committees" in data:
+		assert is_list(data["committees"])
+		for c in data["committees"]:
+			assert is_text(c)
+	if "creators" in data:
+		assert is_list(data["creators"])
+		for c in data["creators"]:
+			assert "typ" in c and c["typ"] in ["Organisation", "Person"]
+			assert "id" in c and is_text(c["id"])
+	if "locations" in data:
+		assert is_list(data["locations"])
+		for l in data["locations"]:
+			# TODO:
+			# An dieser Stelle scheint die Spezifikation widersprüchlich zu sein.
+			# Im Kapitel "Ort (location)" wird auf GeoJSON verwiesen, das Beispiel jedoch nutzt eine andere Datenstruktur (Map mit "lat" und "lon" statt "coordinates"-key mit Liste).
+			assert "description" in l and is_text(l["description"])
+			assert "lat" in l and is_float(l["lat"])
+			assert "lon" in l and is_float(l["lon"])
+	if "related_papers" in data:
+		assert is_list(data["related_papers"])
+		for rp in data["related_papers"]:
+			# NOTE: An dieser Stelle ist noch nicht möglich festzulegen, welche Beziehung die referenzierte Drucksache zur aktuellen hat.
+			assert is_text(rp)
+	if "consultations" in data:
+		assert is_list(data["consultations"])
+		for c in data["consultations"]:
+			assert "meeting" in c and is_text(c["meeting"])
+			assert "agendaitem" in c and is_text(c["agendaitem"])
+			if "role" in c:
+				assert is_text(c["role"])
 
 if __name__ == "__main__":
 	main()
