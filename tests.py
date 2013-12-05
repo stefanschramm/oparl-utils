@@ -31,8 +31,8 @@ def main():
 		['examples/vote_ex1.json', test_vote],
 		['examples/vote_ex2.json', test_vote],
 		['examples/document_ex1.json', test_document],
-		['examples/location_ex1.json', test_location]
-		# TODO: agendaitem
+		['examples/location_ex1.json', test_location],
+		['examples/agendaitem_ex1.json', test_agendaitem]
 	]
 
 	for example_file, test_function in testcases:
@@ -46,11 +46,14 @@ def load_example(filename):
 def is_text(s):
 	return isinstance(s, unicode)
 
-def is_integer(i):
+def is_int(i):
 	return isinstance(i, int)
 
 def is_float(f):
 	return isinstance(f, float)
+
+def is_bool(b):
+	return isinstance(b, bool)
 
 def is_list(l):
 	return isinstance(l, list)
@@ -208,7 +211,7 @@ def test_meeting(data):
 	assert is_list_of_texts(data["people"])
 	# optional fields:
 	if "sequence_number" in data:
-		assert is_integer(data["sequence_number"])
+		assert is_int(data["sequence_number"])
 	if "end" in data:
 		assert is_date(data["end"]) or is_datetime(data["end"])
 	if "address" in data:
@@ -279,7 +282,7 @@ def test_organisation(data):
 
 def test_vote(data):
 	# required fields:
-	assert "sum" in data and is_integer(data["sum"])
+	assert "sum" in data and is_int(data["sum"])
 	assert "vote" in data and data["vote"] in ["DAFUER", "DAGEGEN", "ENTHALTUNG"]
 	# either "people" or "organisations" key is required, but never both:
 	assert "people" in data or "organisations" in data
@@ -320,6 +323,30 @@ def test_location(data):
 		assert is_text(data["description"])
 	if "geometry" in data:
 		assert is_geojson_geometry(data["geometry"])
+
+def test_agendaitem(data):
+	# required fields:
+	assert "identifier" in data and is_text(data["identifier"])
+	assert "public" in data and is_bool(data["public"])
+	assert "title" in data and is_text(data["title"])
+	assert "last_modified" in data and is_datetime(data["last_modified"])
+	assert "meeting" in data and is_text(data["meeting"])
+	# optional fields:
+	# NOTE/TODO: Einheitliche Werte für result definieren?
+	if "result" in data:
+		assert is_text(data["result"])
+	# NOTE: result_details fehlt im Beispiel
+	if "result_details" in data:
+		assert is_text(data["result_details"])
+	if "resolution_text" in data:
+		assert is_text(data["resolution_text"])
+	if "votings" in data:
+		assert is_list(data["votings"])
+		# TODO: Führt hier zu AssertionError, da in diesem Beispiel sowohl "organisations", als auch "people" auftreten.
+		#for v in data["votings"]:
+		#	test_vote(v)
+	if "people_absent" in data:
+		assert is_list_of_texts(data["people_absent"])
 
 if __name__ == "__main__":
 	main()
