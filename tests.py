@@ -127,6 +127,8 @@ def is_geojson_position(p):
 		return False
 	if len(p) != 2:
 		return False
+	if not (is_float(p[0]) and is_float(p[1])):
+		return False
 	return True
 
 def is_geojson_geometry(g):
