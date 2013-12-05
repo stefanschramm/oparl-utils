@@ -41,6 +41,7 @@ def main():
 	# TODO: implement test of referential integrity across all example objects (e.g. if a meeting references a person-id, check if there is a person with this id)
 
 def load_example(filename):
+	# NOTE: Is the BOM required or undesirable?
 	return json.load(codecs.open(filename, 'r', 'utf-8-sig'))
 
 # type checks
