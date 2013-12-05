@@ -97,11 +97,14 @@ def is_sha1_checksum(c):
 	return is_text(c) and re.match("^[0-9a-f]{40}$", c)
 
 def is_relation_with_optional_dates(r):
-	assert "id" in r and is_text(r["id"])
+	if not "id" in r and is_text(r["id"]):
+		return False
 	if "start" in r:
-		assert is_date(r["start"])
+		if not is_date(r["start"]):
+			return False
 	if "end" in r:
-		assert is_date(r["end"])
+		if not is_date(r["end"]):
+			return False
 	return True
 
 def is_organisation_relation(o):
