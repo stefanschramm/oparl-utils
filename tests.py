@@ -25,14 +25,14 @@ def main():
 		['examples/body_ex1.json', test_body],
 		['examples/committee_ex1.json', test_committee],
 		['examples/person_ex1.json', test_person],
-		['examples/meeting_ex1.json', test_meeting],
-		['examples/paper_ex1.json', test_paper],
 		['examples/organisation_ex1.json', test_organisation],
+		['examples/meeting_ex1.json', test_meeting],
+		['examples/agendaitem_ex1.json', test_agendaitem],
 		['examples/vote_ex1.json', test_vote],
 		['examples/vote_ex2.json', test_vote],
+		['examples/paper_ex1.json', test_paper],
 		['examples/document_ex1.json', test_document],
-		['examples/location_ex1.json', test_location],
-		['examples/agendaitem_ex1.json', test_agendaitem]
+		['examples/location_ex1.json', test_location]
 	]
 
 	for example_file, test_function in testcases:
