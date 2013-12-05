@@ -30,8 +30,9 @@ def main():
 		['examples/organisation_ex1.json', test_organisation],
 		['examples/vote_ex1.json', test_vote],
 		['examples/vote_ex2.json', test_vote],
-		['examples/document_ex1.json', test_document]
-		# TODO: agendaitem, location
+		['examples/document_ex1.json', test_document],
+		['examples/location_ex1.json', test_location]
+		# TODO: agendaitem
 	]
 
 	for example_file, test_function in testcases:
@@ -103,6 +104,49 @@ def is_organisation_relation(o):
 
 def is_committee_relation(c):
 	return is_relation_with_optional_dates(c)
+
+def is_list_of_geojson_positions(l):
+	if not is_list(l):
+		return False
+	for p in l:
+		if not is_geojson_position(p):
+			return False
+	return True
+
+def is_geojson_position(p):
+	if not is_list(p):
+		return False
+	if len(p) != 2:
+		return False
+	return True
+
+def is_geojson_geometry(g):
+	if "type" not in g:
+		return False
+	if g["type"] not in ["Point", "MultiPoint", "LineString", "MultiLineString", "Polygon", "MultiPolygon", "GeometryCollection"]:
+		return False
+	if g["type"] == "Point":
+		if "coordinates" not in g:
+			return False
+		if not is_geojson_position(g["coordinates"]):
+			return False
+	elif g["type"] in ["LineString", "MultiPoint"]:
+		if "coordinates" not in g:
+			return False
+		if not is_list_of_geojson_positions(g["coordinates"]):
+			return False
+	elif g["type"] in ["Polygon", "MultiLineString"]:
+		if "coordinates" not in g:
+			return False
+		if not is_list(g["coordinates"]):
+			return False
+		for p in g["coordinates"]:
+			if not is_list_of_geojson_positions(p):
+				return False
+	else:
+		# TODO: Not yet implemented: MultiPolygon, GeometryCollection
+		return False
+	return True
 
 def test_body(data):
 	# required fields:
@@ -267,6 +311,15 @@ def test_document(data):
 	if "master" in data:
 		assert is_text(data["master"])
 	# NOTE: Es fehlt die Prüfung, ob das Dokument von mindestens einer Drucksache referenziert wird (als Hauptdokument oder Anlage).
+
+def test_location(data):
+	# required fields:
+	assert "last_modified" in data and is_datetime(data["last_modified"])
+	# optional fields:
+	if "description" in data:
+		assert is_text(data["description"])
+	if "geometry" in data:
+		assert is_geojson_geometry(data["geometry"])
 
 if __name__ == "__main__":
 	main()
