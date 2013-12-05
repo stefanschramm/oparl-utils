@@ -29,8 +29,9 @@ def main():
 		['examples/paper_ex1.json', test_paper],
 		['examples/organisation_ex1.json', test_organisation],
 		['examples/vote_ex1.json', test_vote],
-		['examples/vote_ex2.json', test_vote]
-		# TODO: agendaitem, document, location
+		['examples/vote_ex2.json', test_vote],
+		['examples/document_ex1.json', test_document]
+		# TODO: agendaitem, location
 	]
 
 	for example_file, test_function in testcases:
@@ -65,6 +66,7 @@ def is_regionalschluessel(s):
 	return is_text(s) and re.match("^[0-9]{12}$", s)
 
 def is_url(u):
+	# NOTE: In Spzifikationsbeschreibung festlegen, ob zusätzlich zu http auch https erlaubt ist?
 	return is_text(u) and re.match('^(http|https)://.*$', u)
 
 def is_email(e):
@@ -84,6 +86,9 @@ def is_date(d):
 def is_phonenumber(p):
 	# TODO: check for ITU E.123 / DIN 5008 / http://www.ietf.org/rfc/rfc3966.txt ?
 	return is_text(p)
+
+def is_sha1_checksum(c):
+	return is_text(c) and re.match("^[0-9a-f]{40}$", c)
 
 def is_relation_with_optional_dates(r):
 	assert "id" in r and is_text(r["id"])
@@ -232,7 +237,9 @@ def test_vote(data):
 	# required fields:
 	assert "sum" in data and is_integer(data["sum"])
 	assert "vote" in data and data["vote"] in ["DAFUER", "DAGEGEN", "ENTHALTUNG"]
+	# either "people" or "organisations" key is required, but never both:
 	assert "people" in data or "organisations" in data
+	assert not ("people" in data and "organisations" in data)
 	if "people" in data:
 		assert is_list(data["people"]) and is_list_of_texts(data["people"])
 		# TODO:
@@ -242,6 +249,24 @@ def test_vote(data):
 		assert data["sum"] == len(data["people"])
 	if "organisations" in data:
 		assert is_list(data["organisations"]) and is_list_of_texts(data["organisations"])
+
+def test_document(data):
+	# required fields:
+	assert "id" in data and is_text(data["id"])
+	assert "name" in data and is_text(data["name"])
+	assert "mime_type" in data and is_text(data["mime_type"])
+	# TODO: Spezifikationsbeschreibung spricht bei "date" von datum, im Beispiel steht jedoch ein Zeitstempel (datetime) im Feld.
+	assert "date" in data and is_datetime(data["date"])
+	assert "last_modified" in data and is_datetime(data["last_modified"])
+	# NOTE: In Spezifikationsbeschreibung SHA1-Prüfsummenformat festlegen auf 40stellig hexadezimal mit Kleinbuchstaben?
+	assert "sha1_checksum" in data and is_sha1_checksum(data["sha1_checksum"])
+	assert "url" in data and is_url(data["url"])
+	# NOTE: Spezifikationsbeschreibung uneindeutig, ob "text" optional
+	assert "text" in data and is_text(data["text"])
+	# optional fields:
+	if "master" in data:
+		assert is_text(data["master"])
+	# NOTE: Es fehlt die Prüfung, ob das Dokument von mindestens einer Drucksache referenziert wird (als Hauptdokument oder Anlage).
 
 if __name__ == "__main__":
 	main()
