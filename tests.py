@@ -43,6 +43,8 @@ def main():
 def load_example(filename):
 	return json.load(codecs.open(filename, 'r', 'utf-8-sig'))
 
+# type checks
+
 def is_text(s):
 	return isinstance(s, unicode)
 
@@ -151,6 +153,8 @@ def is_geojson_geometry(g):
 		return False
 	return True
 
+# tests for object types
+
 def test_body(data):
 	# required fields:
 	assert "id" in data and is_text(data["id"])
@@ -166,6 +170,16 @@ def test_body(data):
 		assert is_url(data["license_url"])
 	if "operator_contact" in data:
 		assert is_text(data["operator_contact"])
+
+def test_committee(data):
+	# required fields:
+	assert "id" in data and is_text(data["id"])
+	assert "body" in data and is_text(data["body"])
+	assert "name" in data and is_text(data["name"])
+	assert "last_modified" in data and is_datetime(data["last_modified"])
+	# optional fields:
+	if "short_name" in data:
+		assert is_text(data["short_name"])
 
 def test_person(data):
 	# required fields:
@@ -198,6 +212,13 @@ def test_person(data):
 		for c in data["committees"]:
 			assert is_committee_relation(c)
 
+def test_organisation(data):
+	# required fields:
+	assert "id" in data and is_text(data["id"])
+	assert "body" in data and is_text(data["body"])
+	assert "name" in data and is_text(data["name"])
+	assert "last_modified" in data and is_datetime(data["last_modified"])
+
 def test_meeting(data):
 	# required fields:
 	assert "id" in data and is_text(data["id"])
@@ -206,7 +227,7 @@ def test_meeting(data):
 	assert "committees" in data and is_list(data["committees"])
 	assert len(data["committees"]) >= 1
 	assert is_list_of_texts(data["committees"])
-	# NOTE: Meiner Auffassung nach sollte das people-Feld optional sein. Außerdem macht es für in der Zukunft liegende Sitzungen keinen Sinn bzw. ist dann zumindest leer.
+	# NOTE: Meiner Auffassung nach sollte das people-Feld optional sein. Außerdem macht es für in der Zukunft liegende Sitzungen keinen Sinn bzw. ist dann zumindest noch leer.
 	assert "people" in data and is_list(data["people"])
 	assert is_list_of_texts(data["people"])
 	# optional fields:
@@ -224,6 +245,47 @@ def test_meeting(data):
 		assert is_text(data["verbatim_minutes"])
 	if "attachments" in data:
 		assert is_list(data["attachments"])
+
+def test_agendaitem(data):
+	# required fields:
+	assert "identifier" in data and is_text(data["identifier"])
+	assert "public" in data and is_bool(data["public"])
+	assert "title" in data and is_text(data["title"])
+	assert "last_modified" in data and is_datetime(data["last_modified"])
+	assert "meeting" in data and is_text(data["meeting"])
+	# optional fields:
+	# NOTE/TODO: Einheitliche Werte für result definieren?
+	if "result" in data:
+		assert is_text(data["result"])
+	# NOTE: result_details fehlt im Beispiel
+	if "result_details" in data:
+		assert is_text(data["result_details"])
+	if "resolution_text" in data:
+		assert is_text(data["resolution_text"])
+	if "votings" in data:
+		assert is_list(data["votings"])
+		# TODO: Führt hier zu AssertionError, da in diesem Beispiel sowohl "organisations", als auch "people" auftreten.
+		#for v in data["votings"]:
+		#	test_vote(v)
+	if "people_absent" in data:
+		assert is_list_of_texts(data["people_absent"])
+
+def test_vote(data):
+	# required fields:
+	assert "sum" in data and is_int(data["sum"])
+	assert "vote" in data and data["vote"] in ["DAFUER", "DAGEGEN", "ENTHALTUNG"]
+	# either "people" or "organisations" key is required, but never both:
+	assert "people" in data or "organisations" in data
+	assert not ("people" in data and "organisations" in data)
+	if "people" in data:
+		assert is_list(data["people"]) and is_list_of_texts(data["people"])
+		# TODO:
+		# Spezifikationsbeschreibung für diesen Fall ist irritierend bzw. bzgl. des Beispiels widersprüchlich:
+		# "Es wird entweder genau eine Person [...] referenziert"
+		# "Gehört die Stimmabgabe zu einer Person, ist der Wert immer 1"
+		assert data["sum"] == len(data["people"])
+	if "organisations" in data:
+		assert is_list(data["organisations"]) and is_list_of_texts(data["organisations"])
 
 def test_paper(data):
 	# required fields:
@@ -263,40 +325,6 @@ def test_paper(data):
 			if "role" in c:
 				assert is_text(c["role"])
 
-def test_committee(data):
-	# required fields:
-	assert "id" in data and is_text(data["id"])
-	assert "body" in data and is_text(data["body"])
-	assert "name" in data and is_text(data["name"])
-	assert "last_modified" in data and is_datetime(data["last_modified"])
-	# optional fields:
-	if "short_name" in data:
-		assert is_text(data["short_name"])
-
-def test_organisation(data):
-	# required fields:
-	assert "id" in data and is_text(data["id"])
-	assert "body" in data and is_text(data["body"])
-	assert "name" in data and is_text(data["name"])
-	assert "last_modified" in data and is_datetime(data["last_modified"])
-
-def test_vote(data):
-	# required fields:
-	assert "sum" in data and is_int(data["sum"])
-	assert "vote" in data and data["vote"] in ["DAFUER", "DAGEGEN", "ENTHALTUNG"]
-	# either "people" or "organisations" key is required, but never both:
-	assert "people" in data or "organisations" in data
-	assert not ("people" in data and "organisations" in data)
-	if "people" in data:
-		assert is_list(data["people"]) and is_list_of_texts(data["people"])
-		# TODO:
-		# Spezifikationsbeschreibung für diesen Fall ist irritierend bzw. bzgl. des Beispiels widersprüchlich:
-		# "Es wird entweder genau eine Person [...] referenziert"
-		# "Gehört die Stimmabgabe zu einer Person, ist der Wert immer 1"
-		assert data["sum"] == len(data["people"])
-	if "organisations" in data:
-		assert is_list(data["organisations"]) and is_list_of_texts(data["organisations"])
-
 def test_document(data):
 	# required fields:
 	assert "id" in data and is_text(data["id"])
@@ -323,30 +351,6 @@ def test_location(data):
 		assert is_text(data["description"])
 	if "geometry" in data:
 		assert is_geojson_geometry(data["geometry"])
-
-def test_agendaitem(data):
-	# required fields:
-	assert "identifier" in data and is_text(data["identifier"])
-	assert "public" in data and is_bool(data["public"])
-	assert "title" in data and is_text(data["title"])
-	assert "last_modified" in data and is_datetime(data["last_modified"])
-	assert "meeting" in data and is_text(data["meeting"])
-	# optional fields:
-	# NOTE/TODO: Einheitliche Werte für result definieren?
-	if "result" in data:
-		assert is_text(data["result"])
-	# NOTE: result_details fehlt im Beispiel
-	if "result_details" in data:
-		assert is_text(data["result_details"])
-	if "resolution_text" in data:
-		assert is_text(data["resolution_text"])
-	if "votings" in data:
-		assert is_list(data["votings"])
-		# TODO: Führt hier zu AssertionError, da in diesem Beispiel sowohl "organisations", als auch "people" auftreten.
-		#for v in data["votings"]:
-		#	test_vote(v)
-	if "people_absent" in data:
-		assert is_list_of_texts(data["people_absent"])
 
 if __name__ == "__main__":
 	main()
